@@ -10,7 +10,7 @@ namespace Netgsm\Iys\Support;
 final class Mask
 {
     /**
-     * `+905321234567` → `+90532*****67`, `ornek@example.com` → `o****@example.com`.
+     * `+905000000001` → `+90500*****01`, `ornek@example.com` → `o****@example.com`.
      */
     public static function recipient(#[\SensitiveParameter] string $recipient): string
     {

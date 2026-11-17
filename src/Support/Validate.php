@@ -39,7 +39,7 @@ final class Validate
 
         if (preg_match(self::PHONE_PATTERN, $recipient) !== 1) {
             throw new InvalidArgumentException(sprintf(
-                '%s telefon numarası +90XXXXXXXXXX biçiminde olmalıdır (örnek: +905321234567).',
+                '%s telefon numarası +90XXXXXXXXXX biçiminde olmalıdır (örnek: +905XXXXXXXXX).',
                 $field,
             ));
         }
