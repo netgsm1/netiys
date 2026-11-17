@@ -37,7 +37,7 @@ use Netgsm\Iys\Support\Validate;
  */
 final class IysClient
 {
-    public const VERSION = '3.0.0';
+    public const VERSION = '3.0.1';
     public const USER_AGENT = 'netgsm-iys-php/' . self::VERSION;
 
     /** `POST /consents` istek başına en fazla kayıt. */

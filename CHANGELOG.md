@@ -3,6 +3,15 @@
 Bu dosyadaki biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/) kurallarına, sürüm
 numaraları [Semantic Versioning](https://semver.org/lang/tr/) kurallarına uyar.
 
+## [3.0.1] - 2026-11-17
+
+3.0.0 ile aynı işlevleri içerir; Packagist'te yayımlanan ilk 3.x sürümüdür.
+
+### Değişti
+
+- README: Netgsm'in İYS Aracı Hizmet Sağlayıcı ve Entegratör olduğu belirtildi.
+- `IysClient::VERSION` ve `User-Agent` 3.0.1 oldu.
+
 ## [3.0.0] - 2026-11-17
 
 Geriye dönük uyumlu değildir. Geçiş için [UPGRADE-3.0.md](UPGRADE-3.0.md).
@@ -43,5 +52,6 @@ Geriye dönük uyumlu değildir. Geçiş için [UPGRADE-3.0.md](UPGRADE-3.0.md).
 
 Önceki sürüm: `api.netgsm.com.tr/iys` uç noktalarını kullanan `iys` sınıfı.
 
+[3.0.1]: https://github.com/netgsm1/netiys/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/netgsm1/netiys/compare/v2.0.1...v3.0.0
 [2.0.1]: https://github.com/netgsm1/netiys/releases/tag/v2.0.1
