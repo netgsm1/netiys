@@ -82,8 +82,19 @@ final class Validate
         if ($refId === '' || strlen($refId) > 255) {
             throw new InvalidArgumentException(sprintf('%s 1-255 karakter olmalıdır.', $field));
         }
+        if (!self::isUtf8($refId)) {
+            throw new InvalidArgumentException(sprintf('%s geçerli UTF-8 olmalıdır.', $field));
+        }
 
         return $refId;
+    }
+
+    /**
+     * mbstring gerektirmeden UTF-8 denetimi; geçersiz dizide PCRE `u` kipi eşleşmez.
+     */
+    public static function isUtf8(#[\SensitiveParameter] string $value): bool
+    {
+        return preg_match('//u', $value) === 1;
     }
 
     public static function requestId(string $requestId): string

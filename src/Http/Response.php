@@ -33,9 +33,16 @@ final class Response implements \JsonSerializable
      */
     public function __debugInfo(): array
     {
+        $headers = $this->headers;
+        foreach (['set-cookie', 'authorization', 'proxy-authorization'] as $name) {
+            if (isset($headers[$name])) {
+                $headers[$name] = '***';
+            }
+        }
+
         return [
             'status' => $this->status,
-            'headers' => $this->headers,
+            'headers' => $headers,
             'body' => sprintf('*** (%d bayt)', strlen($this->body)),
         ];
     }

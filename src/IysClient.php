@@ -130,19 +130,21 @@ final class IysClient
         $response = $this->execute('POST', '/consents', null, $body, false, $requestId);
         $data = $response->dataArray();
 
+        // Reddedilen kayıtlar okunamazsa sessizce atlanmaz: "hepsi kaydedildi" sanılmasın diye sonuç belirsizdir.
         $rejected = [];
         $items = $data['erroritem'] ?? [];
-        if (is_array($items)) {
-            foreach ($items as $item) {
-                if (!is_array($item)) {
-                    continue;
-                }
-                $rejected[] = new RejectedConsent(
-                    is_numeric($item['index'] ?? null) ? (int) $item['index'] : -1,
-                    is_scalar($item['field'] ?? null) ? (string) $item['field'] : '',
-                    is_scalar($item['message'] ?? null) ? (string) $item['message'] : '',
-                );
+        if (!is_array($items) || !array_is_list($items)) {
+            throw $this->unreadableRejections($response);
+        }
+        foreach ($items as $item) {
+            if (!is_array($item) || !is_numeric($item['index'] ?? null)) {
+                throw $this->unreadableRejections($response);
             }
+            $rejected[] = new RejectedConsent(
+                (int) $item['index'],
+                is_scalar($item['field'] ?? null) ? (string) $item['field'] : '',
+                is_scalar($item['message'] ?? null) ? (string) $item['message'] : '',
+            );
         }
 
         return new SaveConsentsResult(
@@ -216,7 +218,7 @@ final class IysClient
      * Adres HTTPS olmalıdır. Sözleşmede imza başlığı olmadığı için yolda tahmin edilemez, gizli bir
      * parça kullanın (`https://ornek.com/iys/webhook/<rastgele-gizli-değer>`).
      */
-    public function saveWebhook(string $webhookUrl, ?string $requestId = null): WebhookResult
+    public function saveWebhook(#[\SensitiveParameter] string $webhookUrl, ?string $requestId = null): WebhookResult
     {
         if (
             !str_starts_with(strtolower($webhookUrl), 'https://')
@@ -279,10 +281,43 @@ final class IysClient
 
         $records = [];
         foreach ($chunk as $i => $item) {
-            $records[] = ConsentRecord::fromArray(is_array($data[$i]) ? $data[$i] : [], $item);
+            $record = ConsentRecord::fromArray(is_array($data[$i]) ? $data[$i] : [], $item);
+            // Sonuçlar sırayla eşleştirilir; sıra kayarsa bir alıcının izni başkasına yazılmasın.
+            if (self::normalizeRecipient($record->recipient) !== self::normalizeRecipient($item->recipient)) {
+                throw new ApiException(
+                    'İYS API sorgu yanıtındaki alıcılar gönderilen sırayla eşleşmiyor.',
+                    $response->httpStatus,
+                    $response->errorCode,
+                    $response->message,
+                    [],
+                    $response->requestId,
+                    $response->threadId,
+                );
+            }
+            $records[] = $record;
         }
 
         return $records;
+    }
+
+    /**
+     * Telefonda yalnızca rakamlar (`+905…` ile `905…` aynı), e-postada küçük harf karşılaştırılır.
+     */
+    private static function normalizeRecipient(#[\SensitiveParameter] string $recipient): string
+    {
+        $recipient = trim($recipient);
+
+        return str_contains($recipient, '@') ? strtolower($recipient) : (string) preg_replace('/\D+/', '', $recipient);
+    }
+
+    private function unreadableRejections(ApiResponse $response): AmbiguousResultException
+    {
+        return new AmbiguousResultException(
+            'İzin kaydı yanıtındaki reddedilen kayıt listesi (erroritem) okunamadı; hangi kayıtların kaydedildiği '
+            . 'belirsiz. Partiyi körlemesine yeniden göndermeyin; durumu searchConsents() ile kontrol edin.',
+            $response->requestId,
+            $response->threadId,
+        );
     }
 
     /**
@@ -317,9 +352,14 @@ final class IysClient
         if ($query !== null) {
             $url .= '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
         }
-        $encodedBody = $body === null
-            ? null
-            : json_encode($body, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        // JSON_THROW_ON_ERROR'un JsonException'ı json_encode çerçevesini (parametresinde alıcılar) yığına yazar.
+        $encodedBody = null;
+        if ($body !== null) {
+            $encodedBody = json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            if ($encodedBody === false) {
+                throw new InvalidArgumentException('İstek gövdesi JSON\'a çevrilemedi; metin alanları geçerli UTF-8 olmalıdır.');
+            }
+        }
 
         $attempt = 0;
         $reauthenticated = false;
@@ -406,7 +446,9 @@ final class IysClient
         if (in_array($code, [self::INTEGRATION_ERROR_CODE, self::RATE_LIMIT_ERROR_CODE], true)) {
             return true;
         }
-        if ($code === null && in_array($status, [429, 503], true)) {
+        // Zarfsız 429 istek işlenmeden reddedilmiştir. Zarfsız 503 ise (ör. ağ geçidinin "upstream reset" yanıtı)
+        // isteği arka uca ilettikten sonra da dönebilir; bu yüzden yalnızca idempotent isteklerde tekrar denenir.
+        if ($code === null && ($status === 429 || ($status === 503 && $idempotent))) {
             return true;
         }
 

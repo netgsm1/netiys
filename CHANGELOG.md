@@ -9,22 +9,47 @@ Güvenlik düzeltmeleri. Tüm 3.x kullanıcılarının güncellemesi önerilir.
 
 ### Güvenlik
 
+- İzin kaydında (`POST /consents`) İYS zarfı olmayan `503` yanıtı (ör. ağ geçidinin "upstream reset" yanıtı)
+  tekrar denenebilir sayılıyordu. Ağ geçidi isteği arka uca ilettikten sonra da bu yanıtı dönebildiği için
+  parti ikinci kez gönderilebiliyordu. Artık `AmbiguousResultException` fırlatılır; sorgu ve webhook'ta
+  tekrar deneme sürer.
+- Okunamayan `erroritem` (liste değil, `index` yok) sessizce atlanıyor, reddedilen kayıtlar kaydedilmiş
+  sanılabiliyordu. Artık `AmbiguousResultException` fırlatılır.
+- Sorgu sonuçları yalnızca sırayla eşleştiriliyordu; sunucu yanıtındaki alıcı sorgulanan alıcıyla
+  eşleşmezse artık `ApiException` fırlatılır. Sayı olmayan bir `errorCode` izin var (`0`) sayılmaz.
 - Paylaşılan bir `TokenStore`'da token önbellek anahtarı yalnızca kullanıcı adına bağlıydı; aynı kullanıcı
-  adını yanlış şifreyle veren bir istemci önbellekteki token'ı kullanabiliyordu. Anahtar artık şifreye de
-  bağlıdır. Güncellemeden sonra önbellekteki token bir kez yeniden alınır.
+  adını yanlış şifreyle veren bir istemci önbellekteki token'ı kullanabiliyordu. Anahtar artık adres,
+  kullanıcı adı ve şifreden PBKDF2-SHA256 (100.000 tur) ile türetilir. Böylece anahtar adından şifre tahmini
+  de yavaşlar. Türetme her süreçte hesap başına bir kez yapılır. Güncellemeden sonra önbellekteki token bir
+  kez yeniden alınır.
+- Kullanıcı adı, şifre ya da `refId` geçersiz UTF-8 olduğunda `json_encode` hatası şifreyi ya da alıcı
+  listesini yığın izine taşıyabiliyordu ve `IysException` olmayan `JsonException` fırlatılıyordu. Bu
+  değerler artık önceden doğrulanır; JSON hatası genel bir `ConfigurationException` ya da
+  `InvalidArgumentException` olur.
+- Identity API'nin `expires_in` değeri denetlenmiyordu: çok büyük değer `TypeError`'a, sıfır ya da negatif
+  değer her istekte yeniden girişe yol açıyordu. Değer en fazla 30 gün ile sınırlanır, geçersiz değer reddedilir.
+- `baseUrl` kullanıcı bilgisi (`https://ext-api.netgsm.com.tr@baska-host`), sorgu ya da `#` içerebiliyordu;
+  artık reddedilir. Elle hazırlanmış serileştirme verisiyle `Config` oluşturulamaz (`__unserialize`).
 - `X-Request-Id`, telefon ve tarih doğrulaması sondaki satır sonunu (`"\n"`) kabul ediyordu; `X-Request-Id`
   bu yolla HTTP başlık bloğuna satır sonu taşıyabiliyordu. Desenler düzeltildi. `CurlTransport` satır sonu
   ya da NUL içeren başlıkları da reddeder.
 - `Request` dökümünde `GET /consents` adresindeki alıcı numaraları açık görünüyordu; sorgu artık maskelenir.
 - `Response` ve `ApiResponse` dökümleri token ve alıcı verisini açık gösteriyordu; artık maskelenir.
-- `Request`, `Response` ve `ApiResponse` `json_encode()` ile (ör. Monolog bağlamında) maskelenmiş görünümü yazar.
-- Şifre, token ya da alıcı bilgisi taşıyan parametreler `#[\SensitiveParameter]` ile işaretlendi; hata
-  yığınlarına (`getTrace()`) açık metin olarak düşmez.
+- `Request`, `Response`, `ApiResponse`, `Consent`, `ConsentQuery` ve `ConsentRecord` `json_encode()` ile
+  (ör. Monolog bağlamında) maskelenmiş görünümü yazar. `ApiException` dökümünde `data`, `Response`
+  dökümünde `Set-Cookie` maskelenir.
+- Şifre, token, alıcı bilgisi ya da webhook adresi taşıyan parametreler `#[\SensitiveParameter]` ile
+  işaretlendi; hata yığınlarına (`getTrace()`) açık metin olarak düşmez.
+- README'deki webhook alıcı örneği gizli yolu `hash_equals()` ile doğrular ve gövde boyutunu sınırlar.
+  İmzasız bildirimdeki `ONAY`'ın tek başına gönderim yetkisi sayılmaması gerektiği belirtildi.
+- CI'de GitHub Actions commit SHA'sına sabitlendi; checkout kimlik bilgisini saklamaz.
 
 ### Değişti
 
 - `Config`, `Request`, `Response` ve `ApiResponse` serileştirilemez; `serialize()` `LogicException` fırlatır.
   İstemciyi kuyruk işinin özelliği olarak taşıyorsanız işin içinde oluşturun.
+- `json_encode($consent)` artık maskelenmiş görünümü verir; API gövdesi için `toArray()` kullanın.
+- `ConsentRecord::ERROR_INVALID_RESPONSE` (`-1`) eklendi.
 - `IysClient::VERSION` ve `User-Agent` 3.0.2 oldu.
 
 ## [3.0.1] - 2026-11-17

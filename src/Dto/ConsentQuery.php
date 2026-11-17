@@ -13,7 +13,7 @@ use Netgsm\Iys\Support\Validate;
 /**
  * `GET /consents` için tek bir sorgu kaydı.
  */
-final class ConsentQuery
+final class ConsentQuery implements \JsonSerializable
 {
     public readonly string $recipient;
 
@@ -80,6 +80,16 @@ final class ConsentQuery
         }
 
         return $data;
+    }
+
+    /**
+     * `json_encode()` (ör. log bağlamı) maskelenmiş görünümü yazar; API gövdesi için {@see self::toArray()} kullanılır.
+     *
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return $this->__debugInfo();
     }
 
     /**

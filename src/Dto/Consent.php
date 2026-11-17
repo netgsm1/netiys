@@ -17,7 +17,7 @@ use Netgsm\Iys\Support\Validate;
  *
  * Yalnızca alıcıdan gerçekten alınmış izinler kaydedilir; İYS'ye yüklenen kayıtlar silinemez.
  */
-final class Consent
+final class Consent implements \JsonSerializable
 {
     public readonly string $recipient;
 
@@ -111,6 +111,16 @@ final class Consent
         }
 
         return $data;
+    }
+
+    /**
+     * `json_encode()` (ör. log bağlamı) maskelenmiş görünümü yazar; API gövdesi için {@see self::toArray()} kullanılır.
+     *
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return $this->__debugInfo();
     }
 
     /**

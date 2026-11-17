@@ -44,6 +44,10 @@ final class Config
         if ($password === '') {
             throw new ConfigurationException('Netgsm şifresi boş olamaz.');
         }
+        // Geçersiz UTF-8, token isteğinin JSON gövdesi oluşturulurken hataya yol açar.
+        if (!Validate::isUtf8($username) || !Validate::isUtf8($password)) {
+            throw new ConfigurationException('Netgsm kullanıcı adı ve şifresi geçerli UTF-8 olmalıdır (.env dosyasının kodlamasını kontrol edin).');
+        }
 
         try {
             Validate::brandCode($brandCode);
@@ -52,8 +56,16 @@ final class Config
         }
 
         $baseUrl = rtrim($baseUrl, '/');
-        if (!str_starts_with(strtolower($baseUrl), 'https://') || filter_var($baseUrl, FILTER_VALIDATE_URL) === false) {
-            throw new ConfigurationException('baseUrl geçerli bir HTTPS adresi olmalıdır.');
+        $parts = parse_url($baseUrl);
+        if (
+            !str_starts_with(strtolower($baseUrl), 'https://')
+            || filter_var($baseUrl, FILTER_VALIDATE_URL) === false
+            || !is_array($parts)
+            || ($parts['host'] ?? '') === ''
+            // `https://ext-api.netgsm.com.tr@baska-host` gibi adresler kimlik bilgisini başka hosta gönderir.
+            || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])
+        ) {
+            throw new ConfigurationException('baseUrl kullanıcı bilgisi, sorgu ya da # içermeyen geçerli bir HTTPS adresi olmalıdır.');
         }
         $this->baseUrl = $baseUrl;
     }
@@ -116,6 +128,16 @@ final class Config
     public function __serialize(): array
     {
         throw new \LogicException('Config serileştirilemez: şifre açık metin olarak yazılır. İstemciyi kullanıldığı yerde oluşturun.');
+    }
+
+    /**
+     * Elle hazırlanmış bir serileştirme verisi kurucudaki doğrulamaları (HTTPS, marka kodu) atlayamaz.
+     *
+     * @param array<string, mixed> $data
+     */
+    public function __unserialize(array $data): void
+    {
+        throw new \LogicException('Config serileştirilmiş veriden oluşturulamaz.');
     }
 
     private static function env(string $name): ?string

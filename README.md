@@ -216,10 +216,27 @@ Alıcı adres için öneriler:
 - Aynı bildirim birden fazla gelebilir: tekilleştirerek işleyin.
 - Bildirimin kaybolabileceğini varsayın; kritik durumlarda `searchConsents()` ile doğrulayın.
 - Bildirimdeki numara ve e-posta adresleri kişisel veridir; loglarda maskeleyin (`Netgsm\Iys\Support\Mask::recipient()`).
+- Bildirimler imzalı değildir; adresi bilen herkes sahte bildirim gönderebilir. Yoldaki gizli değeri
+  `hash_equals()` ile doğrulayın ve gövde boyutunu sınırlayın.
+- **Bildirimdeki `ONAY`, tek başına ticari ileti göndermek için yetki sayılmaz.** Göndermeden önce izni
+  `searchConsents()` ile İYS'den doğrulayın ya da gönderimde SMS API'nin `iysFilter` seçeneğini kullanın.
 
 ```php
-// Framework'ten bağımsız örnek
-$payload = file_get_contents('php://input');
+// Framework'ten bağımsız örnek. $gizliDeger: saveWebhook() ile kaydettiğiniz yoldaki değer (ortam değişkeninden).
+$beklenen = '/iys/webhook/' . $gizliDeger;
+$yol = (string) parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH);
+
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || !hash_equals($beklenen, $yol)) {
+    http_response_code(404);
+    exit;
+}
+
+$payload = file_get_contents('php://input', false, null, 0, 1024 * 1024 + 1); // en fazla 1 MB
+if ($payload === false || strlen($payload) > 1024 * 1024) {
+    http_response_code(413);
+    exit;
+}
+
 // 1) ham gövdeyi kalıcı olarak saklayın  2) 200 dönün  3) kuyruğa alıp işleyin
 http_response_code(200);
 ```
@@ -228,7 +245,8 @@ Bildirim alanları için: https://api-docs.netgsm.com.tr/iys/webhook/
 
 ## Hata yönetimi
 
-Paketin fırlattığı bütün hatalar `Netgsm\Iys\Exception\IysException` arayüzünü uygular. API hatalarında
+Paketin fırlattığı bütün hatalar `Netgsm\Iys\Exception\IysException` arayüzünü uygular. Tek istisna,
+yanlış kullanımı gösteren `LogicException`'dır (ör. `Config` nesnesini `serialize()` etmek). API hatalarında
 mantık `errorCode` alanına göre kurulur.
 
 | Hata | Ne zaman | Ne yapılır |
@@ -239,14 +257,15 @@ mantık `errorCode` alanına göre kurulur.
 | `ForbiddenException` | 403: `60`, `61`, `63` (İYS hizmeti aktif değil) | Alt kullanıcı yetkisi ve NetİYS aktivasyonu |
 | `ValidationException` | 422 / `70` | `errors()` alan bazlı mesajları verir; tekrar denemeyin |
 | `RateLimitException` | 429 / `150`, tekrar hakları tükendi | İstek hızını düşürün |
-| `AmbiguousResultException` | İzin kaydında `424`/`112`, `500`/`110` ya da istek gönderildikten sonra ağ hatası | **Partiyi körlemesine yeniden göndermeyin**; webhook ve `searchConsents()` ile kontrol edin |
+| `AmbiguousResultException` | İzin kaydında `424`/`112`, `500`/`110`, zarfsız `5xx` (`503` dahil), okunamayan `erroritem` ya da istek gönderildikten sonra ağ hatası | **Partiyi körlemesine yeniden göndermeyin**; webhook ve `searchConsents()` ile kontrol edin |
 | `TransportException` | Bağlantı kurulamadı ya da okuma isteğinde ağ hatası | Ağ ve DNS ayarlarını kontrol edin |
 | `ApiException` | Diğer API hataları (`120`, `130`, `81` vb.) | `errorCode`, `apiMessage`, `threadId` |
 
 Otomatik tekrar deneme (varsayılan 2 tekrar, 1 sn ve 2 sn bekleme, `Retry-After`'a uyulur):
 
-- Bütün uç noktalarda: `503`/`141`, `429`/`150`, bağlantı kurulamadı.
-- Yalnızca sorgu ve webhook'ta: `424`/`112`, `500`/`110`, ağ hatası.
+- Bütün uç noktalarda: `503`/`141`, `429`/`150`, zarfsız `429`, bağlantı kurulamadı.
+- Yalnızca sorgu ve webhook'ta: `424`/`112`, `500`/`110`, zarfsız `5xx` (ağ geçidi yanıtı), ağ hatası.
+  İzin kaydında bunlar `AmbiguousResultException` olur, çünkü istek arka uca ulaşmış olabilir.
 - 401 alınırsa token yenilenir ve istek **bir kez** tekrarlanır.
 
 ```php
@@ -290,9 +309,14 @@ final class RedisTokenStore implements TokenStore
 $iys = new IysClient($config, tokenStore: new RedisTokenStore(/* ... */));
 ```
 
-Token gizli veridir: düz metin log ya da paylaşılan dizinlere yazmayın. Önbellek anahtarı adres, kullanıcı
-adı ve şifreden türetilir; şifre değişince yeni giriş yapılır. Birden fazla müşteri (tenant) için aynı
-depoyu kullanıyorsanız yine de her müşteriye ayrı bir anahtar ön eki (namespace) verin.
+Token gizli veridir: düz metin log ya da paylaşılan dizinlere yazmayın; depoya yalnızca uygulamanız
+erişebilmelidir. `Token` nesnesini `serialize()` ile saklıyorsanız okurken
+`unserialize($veri, ['allowed_classes' => [Token::class]])` kullanın.
+
+Önbellek anahtarı adres, kullanıcı adı ve şifreden yavaş bir türetme fonksiyonuyla (PBKDF2-SHA256, 100.000
+tur) oluşturulur. Bu yüzden şifre değişince yeni giriş yapılır ve yanlış şifreyle başka bir hesabın token'ı
+kullanılamaz. Türetme her PHP sürecinde hesap başına bir kez yapılır (yaklaşık 50–100 ms). Birden fazla
+müşteri (tenant) için aynı depoyu kullanıyorsanız her müşteriye ayrı bir anahtar ön eki (namespace) verin.
 
 `Config` serileştirilemez, çünkü şifreyi içerir. Kuyruk işlerinde istemciyi işin içinde oluşturun
 (`IysClient::fromEnv()`); işin özelliği olarak taşımayın.

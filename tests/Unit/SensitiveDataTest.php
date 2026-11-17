@@ -295,6 +295,10 @@ final class SensitiveDataTest extends TestCase
         yield 'ConsentRecord fromArray' => [ConsentRecord::class, 'fromArray', 'data'];
         yield 'Validate alıcı' => [Validate::class, 'recipient', 'recipient'];
         yield 'Mask alıcı' => [Mask::class, 'recipient', 'recipient'];
+        yield 'Validate UTF-8' => [Validate::class, 'isUtf8', 'value'];
+        yield 'IysClient webhook adresi' => [IysClient::class, 'saveWebhook', 'webhookUrl'];
+        yield 'IysClient alıcı karşılaştırma' => [IysClient::class, 'normalizeRecipient', 'recipient'];
+        yield 'ApiException data' => [\Netgsm\Iys\Exception\ApiException::class, '__construct', 'data'];
     }
 
     /**

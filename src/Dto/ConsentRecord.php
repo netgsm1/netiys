@@ -15,12 +15,14 @@ use Netgsm\Iys\Support\Mask;
  * İzin kararı yalnızca {@see self::isApproved()} ile verilir: `RET`, `null` ya da kayıt bulunamadı
  * (81) izin yok demektir; 112 ve 120 "bilinmiyor" demektir ve izin varmış gibi davranılmaz.
  */
-final class ConsentRecord
+final class ConsentRecord implements \JsonSerializable
 {
     public const ERROR_NONE = 0;
     public const ERROR_NOT_FOUND = 81;
     public const ERROR_DEPENDENCY = 112;
     public const ERROR_BAD_REQUEST = 120;
+    /** Yanıttaki errorCode sayı değil; kayıt "bilinmiyor" sayılır, izin varmış gibi davranılmaz. */
+    public const ERROR_INVALID_RESPONSE = -1;
 
     /**
      * @param array<string, mixed> $raw API'den gelen ham kayıt.
@@ -64,7 +66,7 @@ final class ConsentRecord
             $string('source'),
             $string('consentDate'),
             is_numeric($retailerAccessCount) ? (int) $retailerAccessCount : null,
-            is_numeric($errorCode) ? (int) $errorCode : 0,
+            is_numeric($errorCode) ? (int) $errorCode : self::ERROR_INVALID_RESPONSE,
             $string('message'),
             $data,
         );
@@ -112,6 +114,16 @@ final class ConsentRecord
     public function isUnknown(): bool
     {
         return !in_array($this->errorCode, [self::ERROR_NONE, self::ERROR_NOT_FOUND], true);
+    }
+
+    /**
+     * `json_encode()` (ör. log bağlamı) maskelenmiş görünümü yazar; ham kayıt (`raw`) yazılmaz.
+     *
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return $this->__debugInfo();
     }
 
     /**

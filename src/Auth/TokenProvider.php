@@ -6,6 +6,7 @@ namespace Netgsm\Iys\Auth;
 
 use Netgsm\Iys\Config;
 use Netgsm\Iys\Exception\AuthenticationException;
+use Netgsm\Iys\Exception\ConfigurationException;
 use Netgsm\Iys\Exception\TransportException;
 use Netgsm\Iys\Http\Request;
 use Netgsm\Iys\Http\Response;
@@ -28,7 +29,20 @@ final class TokenProvider
     /** Identity API'de tekrar denenebilecek durum kodları. */
     private const RETRYABLE_STATUSES = [429, 500, 502, 503];
 
-    private readonly string $cacheKey;
+    /** Önbellek anahtarı türetmede PBKDF2 tur sayısı; anahtar adından şifre tahminini yavaşlatır. */
+    public const KEY_DERIVATION_ITERATIONS = 100_000;
+
+    /** Sunucunun bildirdiği token ömrünün üst sınırı (saniye). */
+    private const MAX_EXPIRES_IN = 30 * 86400;
+
+    /**
+     * Süreç içi anahtar önbelleği: PBKDF2 her süreçte hesap başına bir kez çalışır.
+     *
+     * @var array<string, string>
+     */
+    private static array $derivedKeys = [];
+
+    private ?string $cacheKey = null;
 
     public function __construct(
         private readonly Config $config,
@@ -36,15 +50,11 @@ final class TokenProvider
         private readonly TokenStore $store,
         private readonly RetryPolicy $retryPolicy,
     ) {
-        // Anahtar şifreye bağlıdır: paylaşılan bir depoda aynı kullanıcı adını yanlış şifreyle veren
-        // bir istemci, başkasının token'ını kullanamaz; kendi girişini yapmak zorunda kalır.
-        $this->cacheKey = 'netgsm-iys-token-'
-            . hash_hmac('sha256', $config->baseUrl . "\0" . $config->username, $config->password());
     }
 
     public function accessToken(): string
     {
-        $token = $this->store->get($this->cacheKey);
+        $token = $this->store->get($this->cacheKey());
         if ($token !== null && $token->isUsable()) {
             return $token->accessToken();
         }
@@ -65,7 +75,25 @@ final class TokenProvider
      */
     public function invalidate(): void
     {
-        $this->store->delete($this->cacheKey);
+        $this->store->delete($this->cacheKey());
+    }
+
+    /**
+     * Anahtar adres, kullanıcı adı ve şifreden yavaş bir KDF (PBKDF2-SHA256) ile türetilir:
+     * - Paylaşılan bir depoda aynı kullanıcı adını yanlış şifreyle veren istemci başkasının token'ını kullanamaz.
+     * - Depodaki anahtar adını gören biri şifreyi hızlı bir hash'e göre çok daha yavaş tahmin edebilir.
+     */
+    private function cacheKey(): string
+    {
+        if ($this->cacheKey !== null) {
+            return $this->cacheKey;
+        }
+
+        $salt = 'netgsm-iys-token-v1' . "\0" . $this->config->baseUrl . "\0" . $this->config->username;
+        $memo = hash('sha256', $salt . "\0" . $this->config->password());
+
+        return $this->cacheKey = self::$derivedKeys[$memo] ??= 'netgsm-iys-token-'
+            . hash_pbkdf2('sha256', $this->config->password(), $salt, self::KEY_DERIVATION_ITERATIONS, 64);
     }
 
     private function login(): Token
@@ -75,7 +103,7 @@ final class TokenProvider
             'password' => $this->config->password(),
             'scope' => self::SCOPE,
         ]);
-        $this->store->save($this->cacheKey, $token);
+        $this->store->save($this->cacheKey(), $token);
 
         return $token;
     }
@@ -83,7 +111,7 @@ final class TokenProvider
     private function refresh(#[\SensitiveParameter] string $refreshToken): Token
     {
         $token = $this->requestToken('/auth/v3/token/refresh', ['refresh_token' => $refreshToken]);
-        $this->store->save($this->cacheKey, $token);
+        $this->store->save($this->cacheKey(), $token);
 
         return $token;
     }
@@ -93,6 +121,13 @@ final class TokenProvider
      */
     private function requestToken(string $path, #[\SensitiveParameter] array $payload): Token
     {
+        // JSON_THROW_ON_ERROR'un JsonException'ı json_encode çerçevesini (parametresinde şifre) yığına yazar;
+        // bu yüzden hata bayrağıyla kontrol edilir ve yalnızca genel bir hata fırlatılır.
+        $body = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($body === false) {
+            throw new ConfigurationException('Kimlik bilgileri JSON\'a çevrilemedi; kullanıcı adı ve şifre geçerli UTF-8 olmalıdır.');
+        }
+
         $request = new Request(
             'POST',
             $this->config->baseUrl . $path,
@@ -101,7 +136,7 @@ final class TokenProvider
                 'Accept' => 'application/json',
                 'User-Agent' => IysClient::USER_AGENT,
             ],
-            json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            $body,
         );
 
         $attempt = 0;
@@ -148,16 +183,19 @@ final class TokenProvider
         $refresh = $data['refresh_token'] ?? null;
         $expiresIn = $data['expires_in'] ?? null;
 
-        if (!is_string($access) || $access === '' || !is_numeric($expiresIn)) {
+        if (!is_string($access) || $access === '' || !is_numeric($expiresIn) || (float) $expiresIn < 1) {
             throw AuthenticationException::fromIdentity(
                 $response->status,
                 'invalid_token_response',
-                'Identity API yanıtında access_token ya da expires_in yok.',
+                'Identity API yanıtında access_token ya da geçerli bir expires_in yok.',
                 null,
             );
         }
 
-        return new Token($access, is_string($refresh) && $refresh !== '' ? $refresh : null, time() + (int) $expiresIn);
+        // Aşırı büyük değer tamsayı taşmasına, kesirli değer TypeError'a yol açmasın.
+        $lifetime = (int) min((float) $expiresIn, (float) self::MAX_EXPIRES_IN);
+
+        return new Token($access, is_string($refresh) && $refresh !== '' ? $refresh : null, time() + $lifetime);
     }
 
     /**
