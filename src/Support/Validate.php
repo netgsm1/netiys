@@ -13,15 +13,16 @@ use Netgsm\Iys\Exception\InvalidArgumentException;
  */
 final class Validate
 {
-    private const PHONE_PATTERN = '/^\+90\d{10}$/';
-    private const DATE_PATTERN = '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/';
-    private const REQUEST_ID_PATTERN = '/^[A-Za-z0-9._-]{8,64}$/';
+    // `$` sondaki "\n"i de kabul eder; desenler bu yüzden `\z` ile biter.
+    private const PHONE_PATTERN = '/^\+90\d{10}\z/';
+    private const DATE_PATTERN = '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\z/';
+    private const REQUEST_ID_PATTERN = '/^[A-Za-z0-9._-]{8,64}\z/';
     private const DATE_FORMAT = 'Y-m-d H:i:s';
 
     /**
      * Telefon `+90XXXXXXXXXX`, e-posta geçerli bir adres; en fazla 255 karakter.
      */
-    public static function recipient(string $recipient, string $field): string
+    public static function recipient(#[\SensitiveParameter] string $recipient, string $field): string
     {
         $recipient = trim($recipient);
         if ($recipient === '' || strlen($recipient) > 255) {

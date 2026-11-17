@@ -12,7 +12,7 @@ final class Mask
     /**
      * `+905321234567` → `+90532*****67`, `ornek@example.com` → `o****@example.com`.
      */
-    public static function recipient(string $recipient): string
+    public static function recipient(#[\SensitiveParameter] string $recipient): string
     {
         $at = strrpos($recipient, '@');
         if ($at !== false) {

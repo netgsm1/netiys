@@ -37,7 +37,7 @@ use Netgsm\Iys\Support\Validate;
  */
 final class IysClient
 {
-    public const VERSION = '3.0.1';
+    public const VERSION = '3.0.2';
     public const USER_AGENT = 'netgsm-iys-php/' . self::VERSION;
 
     /** `POST /consents` istek başına en fazla kayıt. */
@@ -306,8 +306,8 @@ final class IysClient
     private function execute(
         string $method,
         string $path,
-        ?array $query,
-        ?array $body,
+        #[\SensitiveParameter] ?array $query,
+        #[\SensitiveParameter] ?array $body,
         bool $idempotent,
         ?string $requestId,
     ): ApiResponse {

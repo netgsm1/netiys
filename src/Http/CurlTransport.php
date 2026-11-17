@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Netgsm\Iys\Http;
 
 use Netgsm\Iys\Exception\ConfigurationException;
+use Netgsm\Iys\Exception\InvalidArgumentException;
 use Netgsm\Iys\Exception\TransportException;
 
 /**
@@ -46,6 +47,10 @@ final class CurlTransport implements Transport
 
         $headers = [];
         foreach ($request->headers as $name => $value) {
+            // Satır sonu ya da NUL içeren başlık, isteğe başka başlık ya da gövde eklenmesine yol açar.
+            if (strpbrk($name . $value, "\r\n\0") !== false || $name === '' || str_contains($name, ':')) {
+                throw new InvalidArgumentException(sprintf('Geçersiz HTTP başlığı: %s', preg_replace('/[^A-Za-z0-9-]/', '?', $name)));
+            }
             $headers[] = $name . ': ' . $value;
         }
 

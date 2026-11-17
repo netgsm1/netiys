@@ -33,7 +33,7 @@ final class Consent
      * @param list<int>|null            $retailerAccess Bayi yapınız yoksa göndermeyin.
      */
     public function __construct(
-        string $recipient,
+        #[\SensitiveParameter] string $recipient,
         public readonly RecipientType $recipientType,
         public readonly ConsentType $type,
         public readonly ConsentSource $source,
@@ -65,7 +65,7 @@ final class Consent
      * @param array<string, mixed> $data `recipient`, `recipientType`, `type`, `source`, `status`, `consentDate`
      *                                   ve isteğe bağlı `retailerCode`, `retailerAccess`.
      */
-    public static function fromArray(array $data): self
+    public static function fromArray(#[\SensitiveParameter] array $data): self
     {
         foreach (['recipient', 'recipientType', 'type', 'source', 'status', 'consentDate'] as $field) {
             if (!isset($data[$field])) {
@@ -121,7 +121,7 @@ final class Consent
         return ['recipient' => Mask::recipient($this->recipient)] + $this->toArray();
     }
 
-    private static function string(mixed $value, string $field): string
+    private static function string(#[\SensitiveParameter] mixed $value, string $field): string
     {
         if (!is_string($value)) {
             throw new InvalidArgumentException(sprintf('%s metin olmalıdır.', $field));

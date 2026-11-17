@@ -107,6 +107,17 @@ final class Config
         ];
     }
 
+    /**
+     * Serileştirilmiş hali şifreyi açık metin olarak içerir (kuyruk, önbellek, oturum). Kuyruk işlerinde
+     * istemciyi işin içinde {@see self::fromEnv()} ile oluşturun.
+     *
+     * @return array<string, mixed>
+     */
+    public function __serialize(): array
+    {
+        throw new \LogicException('Config serileştirilemez: şifre açık metin olarak yazılır. İstemciyi kullanıldığı yerde oluşturun.');
+    }
+
     private static function env(string $name): ?string
     {
         $value = $_ENV[$name] ?? $_SERVER[$name] ?? getenv($name);

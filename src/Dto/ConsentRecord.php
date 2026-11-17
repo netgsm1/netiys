@@ -26,7 +26,7 @@ final class ConsentRecord
      * @param array<string, mixed> $raw API'den gelen ham kayıt.
      */
     public function __construct(
-        public readonly string $recipient,
+        #[\SensitiveParameter] public readonly string $recipient,
         public readonly ?RecipientType $recipientType,
         public readonly ?ConsentType $type,
         public readonly ?ConsentStatus $status,
@@ -42,7 +42,7 @@ final class ConsentRecord
     /**
      * @param array<mixed> $data
      */
-    public static function fromArray(array $data, ConsentQuery $query): self
+    public static function fromArray(#[\SensitiveParameter] array $data, ConsentQuery $query): self
     {
         // API boş alanları null yerine "" olarak da döndürebiliyor; ikisi de "değer yok" sayılır.
         $string = static fn (string $key): ?string => isset($data[$key]) && is_scalar($data[$key]) && (string) $data[$key] !== ''

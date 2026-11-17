@@ -3,6 +3,30 @@
 Bu dosyadaki biçim [Keep a Changelog](https://keepachangelog.com/tr-TR/1.1.0/) kurallarına, sürüm
 numaraları [Semantic Versioning](https://semver.org/lang/tr/) kurallarına uyar.
 
+## [3.0.2] - 2026-11-17
+
+Güvenlik düzeltmeleri. Tüm 3.x kullanıcılarının güncellemesi önerilir.
+
+### Güvenlik
+
+- Paylaşılan bir `TokenStore`'da token önbellek anahtarı yalnızca kullanıcı adına bağlıydı; aynı kullanıcı
+  adını yanlış şifreyle veren bir istemci önbellekteki token'ı kullanabiliyordu. Anahtar artık şifreye de
+  bağlıdır. Güncellemeden sonra önbellekteki token bir kez yeniden alınır.
+- `X-Request-Id`, telefon ve tarih doğrulaması sondaki satır sonunu (`"\n"`) kabul ediyordu; `X-Request-Id`
+  bu yolla HTTP başlık bloğuna satır sonu taşıyabiliyordu. Desenler düzeltildi. `CurlTransport` satır sonu
+  ya da NUL içeren başlıkları da reddeder.
+- `Request` dökümünde `GET /consents` adresindeki alıcı numaraları açık görünüyordu; sorgu artık maskelenir.
+- `Response` ve `ApiResponse` dökümleri token ve alıcı verisini açık gösteriyordu; artık maskelenir.
+- `Request`, `Response` ve `ApiResponse` `json_encode()` ile (ör. Monolog bağlamında) maskelenmiş görünümü yazar.
+- Şifre, token ya da alıcı bilgisi taşıyan parametreler `#[\SensitiveParameter]` ile işaretlendi; hata
+  yığınlarına (`getTrace()`) açık metin olarak düşmez.
+
+### Değişti
+
+- `Config`, `Request`, `Response` ve `ApiResponse` serileştirilemez; `serialize()` `LogicException` fırlatır.
+  İstemciyi kuyruk işinin özelliği olarak taşıyorsanız işin içinde oluşturun.
+- `IysClient::VERSION` ve `User-Agent` 3.0.2 oldu.
+
 ## [3.0.1] - 2026-11-17
 
 3.0.0 ile aynı işlevleri içerir; Packagist'te yayımlanan ilk 3.x sürümüdür.
@@ -52,6 +76,7 @@ Geriye dönük uyumlu değildir. Geçiş için [UPGRADE-3.0.md](UPGRADE-3.0.md).
 
 Önceki sürüm: `api.netgsm.com.tr/iys` uç noktalarını kullanan `iys` sınıfı.
 
+[3.0.2]: https://github.com/netgsm1/netiys/compare/v3.0.1...v3.0.2
 [3.0.1]: https://github.com/netgsm1/netiys/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/netgsm1/netiys/compare/v2.0.1...v3.0.0
 [2.0.1]: https://github.com/netgsm1/netiys/releases/tag/v2.0.1

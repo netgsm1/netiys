@@ -24,7 +24,7 @@ final class ConsentQuery
      * @param string|null $refId     Kayda özel referans; gönderilmezse istekteki refId kullanılır.
      */
     public function __construct(
-        string $recipient,
+        #[\SensitiveParameter] string $recipient,
         public readonly RecipientType $recipientType,
         public readonly ConsentType $type,
         ?string $refId = null,
@@ -36,7 +36,7 @@ final class ConsentQuery
     /**
      * @param array<string, mixed> $data `recipient`, `recipientType`, `type`, isteğe bağlı `refId`.
      */
-    public static function fromArray(array $data): self
+    public static function fromArray(#[\SensitiveParameter] array $data): self
     {
         $recipient = $data['recipient'] ?? null;
         $recipientType = $data['recipientType'] ?? null;

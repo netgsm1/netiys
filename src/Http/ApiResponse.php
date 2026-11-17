@@ -9,14 +9,14 @@ namespace Netgsm\Iys\Http;
  *
  * Gövde JSON değilse ya da zarf beklenen biçimde değilse {@see self::$errorCode} null olur.
  */
-final class ApiResponse
+final class ApiResponse implements \JsonSerializable
 {
     private function __construct(
         public readonly int $httpStatus,
         public readonly bool $success,
         public readonly ?int $errorCode,
         public readonly ?string $message,
-        public readonly mixed $data,
+        #[\SensitiveParameter] public readonly mixed $data,
         public readonly ?string $requestId,
         public readonly ?string $threadId,
     ) {
@@ -50,6 +50,46 @@ final class ApiResponse
             $requestId,
             $threadId,
         );
+    }
+
+    /**
+     * `data` alıcı bilgileri taşıyabilir; dökümlerde yalnızca türü ve boyutu görünür.
+     *
+     * @return array<string, mixed>
+     */
+    public function __debugInfo(): array
+    {
+        return [
+            'httpStatus' => $this->httpStatus,
+            'success' => $this->success,
+            'errorCode' => $this->errorCode,
+            'message' => $this->message,
+            'data' => match (true) {
+                $this->data === null => null,
+                is_array($this->data) => sprintf('*** (%d öğe)', count($this->data)),
+                default => '***',
+            },
+            'requestId' => $this->requestId,
+            'threadId' => $this->threadId,
+        ];
+    }
+
+    /**
+     * `json_encode()` (ör. Monolog bağlamı) de maskelenmiş görünümü yazar.
+     *
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return $this->__debugInfo();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function __serialize(): array
+    {
+        throw new \LogicException('ApiResponse serileştirilemez: kişisel veri taşıyabilir.');
     }
 
     public function isSuccessful(): bool

@@ -36,7 +36,10 @@ final class TokenProvider
         private readonly TokenStore $store,
         private readonly RetryPolicy $retryPolicy,
     ) {
-        $this->cacheKey = 'netgsm-iys-token-' . hash('sha256', $config->baseUrl . "\0" . $config->username);
+        // Anahtar şifreye bağlıdır: paylaşılan bir depoda aynı kullanıcı adını yanlış şifreyle veren
+        // bir istemci, başkasının token'ını kullanamaz; kendi girişini yapmak zorunda kalır.
+        $this->cacheKey = 'netgsm-iys-token-'
+            . hash_hmac('sha256', $config->baseUrl . "\0" . $config->username, $config->password());
     }
 
     public function accessToken(): string
@@ -77,7 +80,7 @@ final class TokenProvider
         return $token;
     }
 
-    private function refresh(string $refreshToken): Token
+    private function refresh(#[\SensitiveParameter] string $refreshToken): Token
     {
         $token = $this->requestToken('/auth/v3/token/refresh', ['refresh_token' => $refreshToken]);
         $this->store->save($this->cacheKey, $token);

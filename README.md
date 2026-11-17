@@ -290,7 +290,12 @@ final class RedisTokenStore implements TokenStore
 $iys = new IysClient($config, tokenStore: new RedisTokenStore(/* ... */));
 ```
 
-Token gizli veridir: düz metin log ya da paylaşılan dizinlere yazmayın.
+Token gizli veridir: düz metin log ya da paylaşılan dizinlere yazmayın. Önbellek anahtarı adres, kullanıcı
+adı ve şifreden türetilir; şifre değişince yeni giriş yapılır. Birden fazla müşteri (tenant) için aynı
+depoyu kullanıyorsanız yine de her müşteriye ayrı bir anahtar ön eki (namespace) verin.
+
+`Config` serileştirilemez, çünkü şifreyi içerir. Kuyruk işlerinde istemciyi işin içinde oluşturun
+(`IysClient::fromEnv()`); işin özelliği olarak taşımayın.
 
 ## Test
 

@@ -18,8 +18,17 @@ ya da gerçek alıcı verisi eklemeyin.
 - TLS sertifika ve host doğrulaması her zaman açıktır; kapatma seçeneği yoktur.
 - Yalnızca HTTPS adreslerine istek gönderilir ve yönlendirmeler izlenmez.
 - Şifre yalnızca token alınırken gönderilir; İYS istekleri Bearer token kullanır.
-- Şifre ve token'lar dökümlerde ve hata izlerinde görünmez.
+- Şifre, token ve alıcı bilgileri `print_r`, `var_dump` ve `json_encode` çıktılarında maskelenir.
+  Hata yığınlarında (`getTrace()`) bu değerleri taşıyan parametreler `#[\SensitiveParameter]` ile gizlenir.
+- `Config`, `Request`, `Response` ve `ApiResponse` serileştirilemez (`serialize()` hata verir); şifre ve
+  token kuyruk, önbellek ya da oturum verisine düşmez.
 - Hata mesajlarında alıcı numarası ve e-posta adresi yer almaz.
+- HTTP başlıklarında satır sonu ve NUL karakteri reddedilir; `X-Request-Id` yalnızca `A-Z a-z 0-9 . _ -` içerir.
+- Token önbellek anahtarı kullanıcı adı ve şifreye bağlıdır; paylaşılan bir depoda yanlış şifre başka
+  bir hesabın token'ını kullanamaz.
+
+`var_export()` ve nesne özelliklerini yansıma (reflection) ile okuyan araçlar maskelemeyi atlar. Bu nesneleri
+loglamak gerekiyorsa `json_encode()` kullanın.
 
 ## Kullanırken
 
