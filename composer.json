@@ -1,21 +1,48 @@
 {
     "name": "netgsm/iys",
-    "description": "NETGSM ILETI YONETIM SISTEMI",
-    "type": "package",
+    "description": "Netgsm İYS (İleti Yönetim Sistemi) API v1 için PHP istemcisi",
+    "type": "library",
     "license": "MIT",
-    "autoload": {
-        "psr-4": {
-            "Netgsm\\Iys\\": "src/"
-        }
-    },
+    "keywords": ["netgsm", "iys", "ileti yonetim sistemi", "consent", "izin", "ticari ileti"],
+    "homepage": "https://github.com/netgsm1/netiys",
     "authors": [
         {
             "name": "Netgsm IYS",
             "email": "teknikdestek@netgsm.com.tr"
         }
     ],
-    "minimum-stability": "dev",
+    "support": {
+        "email": "teknikdestek@netgsm.com.tr",
+        "issues": "https://github.com/netgsm1/netiys/issues",
+        "docs": "https://api-docs.netgsm.com.tr/iys/"
+    },
     "require": {
-        "php": ">=7.2.5"
+        "php": ">=8.2",
+        "ext-curl": "*",
+        "ext-json": "*"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.64",
+        "phpstan/phpstan": "^2.0",
+        "phpunit/phpunit": "^11.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Netgsm\\Iys\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Netgsm\\Iys\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit",
+        "analyse": "phpstan analyse --memory-limit=512M",
+        "cs": "php-cs-fixer fix --dry-run --diff",
+        "cs-fix": "php-cs-fixer fix"
+    },
+    "config": {
+        "sort-packages": true
     }
 }

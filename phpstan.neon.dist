@@ -1,0 +1,7 @@
+parameters:
+    level: 8
+    paths:
+        - src
+        - tests
+    # Genel API'de PHPDoc tipleri çalışma zamanında da doğrulanır (çağıran kod tip denetimsiz olabilir).
+    treatPhpDocTypesAsCertain: false
