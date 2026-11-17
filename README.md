@@ -2,7 +2,7 @@
 
 İleti Yönetim Sistemi (İYS), hizmet sağlayıcıların ticari elektronik ileti onaylarını kaydettiği ulusal
 veri tabanıdır. Alıcılar İYS üzerinden onay verebilir ya da mevcut onaylarını reddedebilir.
-**Netgsm, İYS Aracı Hizmet Sağlayıcı kurumdur.**
+**Netgsm, İYS Aracı Hizmet Sağlayıcı kurumdur ve Entegratördür.**
 
 Bu paket, [Netgsm İYS API v1](https://api-docs.netgsm.com.tr/iys/) ile izin kaydetmek, izin sorgulamak ve
 izin sonuçlarının bildirileceği webhook adresini tanımlamak için kullanılır.
