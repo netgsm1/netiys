@@ -85,6 +85,12 @@ $iys = new IysClient($config, new CurlTransport(timeout: 30, connectTimeout: 10)
 
 `.env` dosyasını `.gitignore`'a ekleyin ve istemciyi yalnızca sunucu tarafında kullanın.
 
+**`cURL 60: SSL certificate problem: unable to get local issuer certificate`** hatası, PHP'nin güvenilir kök
+sertifika (CA) deposunu bulamadığını gösterir; Windows ve XAMPP kurulumlarında sık görülür. TLS doğrulamasını
+kapatmayın. `php.ini` içinde `curl.cainfo` değerini bir CA dosyasına (örneğin https://curl.se/docs/caextract.html
+adresindeki `cacert.pem`) yönlendirin ya da dosyayı doğrudan verin:
+`new CurlTransport(caBundle: '/yol/cacert.pem')`.
+
 ## İzin kaydetme
 
 `POST /iys/v1/consents`. Bir istekte **en fazla 500** izin gönderilir.

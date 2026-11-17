@@ -44,7 +44,10 @@ final class ConsentRecord
      */
     public static function fromArray(array $data, ConsentQuery $query): self
     {
-        $string = static fn (string $key): ?string => isset($data[$key]) && is_scalar($data[$key]) ? (string) $data[$key] : null;
+        // API boş alanları null yerine "" olarak da döndürebiliyor; ikisi de "değer yok" sayılır.
+        $string = static fn (string $key): ?string => isset($data[$key]) && is_scalar($data[$key]) && (string) $data[$key] !== ''
+            ? (string) $data[$key]
+            : null;
 
         $recipientType = $string('recipientType');
         $type = $string('type');

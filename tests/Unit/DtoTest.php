@@ -151,6 +151,17 @@ final class DtoTest extends TestCase
         self::assertSame('t****@example.com', Mask::recipient(self::EMAIL));
     }
 
+    public function testEmptyStringFieldsAreNormalisedToNull(): void
+    {
+        $query = new ConsentQuery(self::PHONE, RecipientType::BIREYSEL, ConsentType::MESAJ);
+
+        $record = ConsentRecord::fromArray(['status' => 'ONAY', 'source' => '', 'consentDate' => ''], $query);
+
+        self::assertNull($record->source);
+        self::assertNull($record->consentDate);
+        self::assertTrue($record->isApproved());
+    }
+
     public function testConsentRecordDecision(): void
     {
         $query = new ConsentQuery(self::PHONE, RecipientType::BIREYSEL, ConsentType::MESAJ);
