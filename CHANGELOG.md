@@ -43,5 +43,5 @@ Geriye dönük uyumlu değildir. Geçiş için [UPGRADE-3.0.md](UPGRADE-3.0.md).
 
 Önceki sürüm: `api.netgsm.com.tr/iys` uç noktalarını kullanan `iys` sınıfı.
 
-[3.0.0]: https://github.com/netgsm1/netiys/compare/v2.0.1...v3.0.0
+[3.0.0]: https://github.com/netgsm1/netiys/compare/v2.0.1...3.0.0
 [2.0.1]: https://github.com/netgsm1/netiys/releases/tag/v2.0.1
